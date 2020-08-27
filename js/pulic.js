@@ -1,0 +1,1 @@
+"use strict";$(".nav a").mouseover(function(){$(this).css({color:"red"}).mouseout(function(){$(this).css({color:"#ffffff"})})}),console.log(111),console.log(222);console.log(111)

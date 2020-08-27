@@ -1,0 +1,142 @@
+<!DOCTYPE html><html lang=en><head><meta charset=UTF-8><meta name=viewport content="width=device-width,initial-scale=1"><title>绘制图片表格</title><style>*{margin:0;padding:0}.box{width:700px;min-height:300px;margin:50px auto}.text{width:500px;height:40px;box-sizing:border-box;border:2px solid #87ceeb;border-radius:5px;padding:12px 20px;line-height:16px;margin-bottom:20px}button{width:180px;height:40px;text-align:center;line-height:40px;margin-left:10px;border:none}#report{width:700px;height:300px}</style></head><body><div class=box><input type=text class=text> <button class=btn>点击查询</button><div id=report></div></div><script src=../lib/jquery-1.12.4.js></script><script src=../lib/echarts.js></script><script>/* 
+            总的配置项是一个对象：{}
+                tiele:图标的标题
+                tooltip:提示框
+                legend:图标组件
+                xAxis:x轴
+                xAxis:y轴
+                series:定义每个图例的及其数据显示{
+                    name:置顶的标题,
+                    type:bar   表格类型
+                    data:传入的数据
+                    itemStyle:{color:表的颜色}
+                    label:{show:是否显示,formatter:要展示的标签文字}
+                    emphasis:{高亮样式   itemStyle{color:高亮时候的颜色   label:{show:    ,formatter:高亮时候的标签文字}}}
+                }
+        */
+            /* 
+            需求:根据输入的城市,显示响应城市的24小时天气,显示分为表格和折线图
+            1 通过输入的内容,获取输入的城市
+            2 输入的城市一定是中文,如果是非中文不做处理
+            3 由于请求的接口是京东的api,数据跨域,不支持jsonp,只能使用代理       
+        */
+        $('.btn').click(function(){
+            var text = $('.text').val();//获取输入的星系
+            console.log(text)
+            //由于需要数据跨域，使用代码，需要配置
+            /* 
+            
+             ==>点击切换版本
+                ==>点击php5.4.xxx + nginx
+                ==>点击其他选项菜单
+                ==>点击打开配置文件
+                ==>点击nginx-conf(config配置文件)
+                    -->大概在56行左右有一个server
+                    -->顺着这个开始扩展,找到server的闭合大括号
+                    -->在这个闭合大括号的上面那一行书写代理配置
+                phpStudy-->其他选项菜单-->打开配置文件-->nginx-conf-->大概110行左右
+
+                location /weather {
+                    proxy_pass https://way.jd.com/jisuapi/weather;
+                }
+            */  
+        //根据数据查询京东天气api
+        $.ajax({
+            url:'/weather',//固定写法
+            dataType:'json',//没有jsonp  只能用代理
+            data:{
+                city:text,//信息城市为输入的内容
+                appkey:'daef984f9684a2bd4d1862e2235be700'
+            }
+        }).then(res=>{
+            //这个时候需要制作一个函数来筛选数据结果
+            var result = formatData(res);
+            //制作图表、
+            result.city = text;
+            renderData(result)
+        })
+        
+    })
+        //对数据进行
+      function formatData(data){
+          //准备一个对象用于存储结果
+          var min = (Math.floor(data.result.result.templow/10))*10;
+          var max = (Math.ceil(data.result.result.temphigh/10))*10;
+          var obj = {
+              min:min,//最低气温，如果是二十以下 就变二十
+              max:max,//最高气温，如果是二十以上就变四十
+              xAxis:[],//x轴数据
+              temp:[],//显示的数据
+              net:[],//显示天气
+              tool:data.result.result.winddirect,
+          }
+          obj.interval = Math.ceil((obj.max-obj.min)/4);//展示得多少行 图表
+        //   console.log(data.result.result.hourly);
+        //   console.log(obj)
+        //遍历结果
+        $.each(data.result.result.hourly,function(index,item){
+            if(index==0){
+                //第0个数据就是现在
+                obj.xAxis.push('现在');
+                obj.temp.push(item.temp);
+                obj.net.push(item.weather);
+            }
+            else if(index%2==0){
+                //没三次后显示数据
+                obj.xAxis.push(item.time.split(':')[0]+'点');//获取时间
+                obj.temp.push(item.temp);
+                obj.net.push(item.weather);
+            }
+        })
+        return obj;
+      }
+      //下面开始根据数据进行渲染成一个天气的折线图
+      function renderData(data){
+          if(!data){
+              return;//没有就啥也不干
+          }
+          // 3 初始化图标
+          var myChart = echarts.init(document.querySelector('#report'))
+
+          //  4 设置配置项和数据
+
+          var option = {
+              title:{
+                  text:data.city+'未来24小时天气预报'
+              },
+            // tooltip: {},
+            // legend: {
+            //     data: ['天气']
+            // },
+            xAxis:{
+                data:data.xAxis
+            },
+            yAxis:{
+                min:data.min,//20
+                max:data.max,//40
+                interval:data.interval//5
+            },
+            series:[
+                {
+                    name:'温度',
+                    type: 'line',//折线图
+                    label:{
+                        normal:{
+                            show:true,
+                            position:'top',
+                            color:'blue',
+                            formatter:'{c}℃'
+                        }
+                    },
+                    //下面取域的颜色
+                    areaStyle:{
+                        color:'yellow'
+                    },
+                    data:data.temp
+                }
+            ]
+          }
+          // 5 根据配置项回值图表
+          myChart.setOption(option)
+      }
+      renderData()</script></body></html>
